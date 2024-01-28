@@ -1,0 +1,425 @@
+import pandas as pd
+import numpy as np
+
+df=pd.read_csv('spam.csv',encoding='latin1')
+
+df.sample(5)
+
+df.shape
+
+#data cleaning
+df.info()
+
+df.drop(columns=['Unnamed: 2','Unnamed: 3','Unnamed: 4'],inplace=True)
+
+df.sample(5)
+
+df.rename(columns={'v1':'target','v2':'msg'},inplace=True)
+df.sample(5)
+
+
+from sklearn.preprocessing import LabelEncoder
+encoder=LabelEncoder()
+
+encoder.fit_transform(df['target'])
+
+df['target']=encoder.fit_transform(df['target'])
+
+df.sample(5)
+
+df.isnull().sum()
+
+df.duplicated().sum()
+
+df=df.drop_duplicates(keep='first')
+
+df
+
+df.shape
+
+df['target'].value_counts()
+
+import matplotlib.pyplot as plt
+plt.pie(df['target'].value_counts(),labels=["ham","spam"],autopct="%.02f")
+plt.show()
+
+#above Data is imbalanced
+
+!pip install nltk
+
+import nltk
+
+nltk.download('punkt')
+
+df['no_of_characters']=df['msg'].apply(len)
+
+df.head(5)
+
+df['msg'].apply(lambda x:nltk.word_tokenize(x))
+
+df['no_of_words']=df['msg'].apply(lambda x:len(nltk.word_tokenize(x)))
+
+df.head()
+
+df['msg'].apply(lambda x:nltk.sent_tokenize(x))
+
+df['no_of_sentences']=df['msg'].apply(lambda x:len(nltk.sent_tokenize(x)))
+
+df.head()
+
+df[['no_of_characters','no_of_words','no_of_sentences']].describe()
+
+df[df['target']==0][['no_of_characters','no_of_words','no_of_sentences']].describe()
+
+df[df['target']==1][['no_of_characters','no_of_words','no_of_sentences']].describe()
+
+pip install seaborn matplotlib
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+sns.histplot(df[df['target'] == 0]['no_of_characters'])
+sns.histplot(df[df['target'] == 1]['no_of_characters'],color='red')
+
+sns.histplot(df[df['target'] == 0]['no_of_words'])
+sns.histplot(df[df['target'] == 1]['no_of_words'],color='red')
+
+sns.histplot(df[df['target'] == 0]['no_of_sentences'])
+sns.histplot(df[df['target'] == 1]['no_of_sentences'],color='red')
+
+sns.pairplot(df,hue='target')
+
+#data preprpocessing
+
+nltk.download('stopwords')
+
+import string
+string.punctuation
+
+from nltk.stem.porter import PorterStemmer
+ps=PorterStemmer()
+ps.stem('dancing')
+
+def transform_msg(msg):
+    msg=msg.lower()#lower case
+    msg=nltk.word_tokenize(msg)#tokenize
+    
+    y=[]
+    for i in msg:               #removing special characters
+        if i.isalnum():
+            y.append(i)
+    msg=y[:]
+    y.clear()
+    for i in msg:
+        if i not in stopwords.words('english') and i not in string.punctuation:
+            y.append(i)
+    msg=y[:]
+    y.clear()
+    for i in msg:
+        y.append(ps.stem(i))
+    return" ".join(y)
+    return y
+    return msg
+
+from nltk.corpus import stopwords
+stopwords.words('english')
+
+transform_msg(' how are you?')
+
+transform_msg('Hi how are you,vikas?')
+
+transform_msg('I loved the YT lectures on machine learning. how about you?')
+
+df['transformed_msg']=df['msg'].apply(transform_msg)
+
+df.head(5)
+
+pip install wordcloud
+
+from wordcloud import WordCloud
+wc=WordCloud(width=500,height=500,min_font_size=10,background_color='white')
+
+
+spam_wc=wc.generate(df[df['target']==1]['transformed_msg'].str.cat(sep=""))
+
+plt.imshow(spam_wc)
+
+spam_wc=wc.generate(df[df['target']==0]['transformed_msg'].str.cat(sep=""))
+plt.imshow(spam_wc)
+
+df.head()
+
+spam_corpus=[]
+for msg in df[df['target']==1]['transformed_msg'].tolist():
+    for word in msg.split():
+        spam_corpus.append(word)
+
+len(spam_corpus)
+
+from collections import Counter
+Counter(spam_corpus).most_common(30)
+
+pd.DataFrame(Counter(spam_corpus).most_common(30))
+
+sns.barplot(x=pd.DataFrame(Counter(spam_corpus).most_common(30))[0],y=pd.DataFrame(Counter(spam_corpus).most_common(30))[1])
+
+
+sns.barplot(x=pd.DataFrame(Counter(spam_corpus).most_common(30))[0],y=pd.DataFrame(Counter(spam_corpus).most_common(30))[1])
+plt.xticks(rotation='vertical')
+
+ham_corpus=[]
+for msg in df[df['target']==0]['transformed_msg'].tolist():
+    for word in msg.split():
+        ham_corpus.append(word)
+
+len(ham_corpus)
+
+from collections import Counter
+Counter(ham_corpus).most_common(30)
+
+pd.DataFrame(Counter(ham_corpus).most_common(30))
+
+sns.barplot(x=pd.DataFrame(Counter(ham_corpus).most_common(30))[0],y=pd.DataFrame(Counter(ham_corpus).most_common(30))[1])
+
+
+sns.barplot(x=pd.DataFrame(Counter(ham_corpus).most_common(30))[0],y=pd.DataFrame(Counter(ham_corpus).most_common(30))[1])
+plt.xticks(rotation='vertical')
+
+df.head(5)
+
+#Model Building
+
+from sklearn.feature_extraction.text import CountVectorizer,TfidfVectorizer
+cv=CountVectorizer()
+tfidf=TfidfVectorizer()
+
+x=tfidf.fit_transform(df['transformed_msg']).toarray()
+
+x
+
+
+
+x.shape
+
+y=df['target'].values
+
+y
+
+from sklearn.model_selection import train_test_split
+
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2,random_state=2)
+
+from sklearn.naive_bayes import GaussianNB,MultinomialNB,BernoulliNB
+from sklearn.metrics import accuracy_score,confusion_matrix,precision_score
+
+gnb=GaussianNB()
+mnb=MultinomialNB()
+bnb=BernoulliNB()
+
+gnb.fit(x_train,y_train)
+y_pred1=gnb.predict(x_test)
+print(accuracy_score(y_test,y_pred1))
+print(confusion_matrix(y_test,y_pred1))
+print(precision_score(y_test,y_pred1))
+
+mnb.fit(x_train,y_train)
+y_pred1=mnb.predict(x_test)
+print(accuracy_score(y_test,y_pred1))
+print(confusion_matrix(y_test,y_pred1))
+print(precision_score(y_test,y_pred1))
+
+bnb.fit(x_train,y_train)
+y_pred1=bnb.predict(x_test)
+print(accuracy_score(y_test,y_pred1))
+print(confusion_matrix(y_test,y_pred1))
+print(precision_score(y_test,y_pred1))
+
+#tfidf-->MNB
+
+pip install xgboost
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from xgboost import XGBClassifier
+
+svc=SVC(kernel='sigmoid',gamma=1.0)
+knc=KNeighborsClassifier()
+mbn=MultinomialNB()
+dtc=DecisionTreeClassifier(max_depth=5)
+lrc=LogisticRegression(solver='liblinear',penalty='l1')
+rfc=RandomForestClassifier(n_estimators=50,random_state=2)
+abc=AdaBoostClassifier(n_estimators=50,random_state=2)
+bc=BaggingClassifier(n_estimators=50,random_state=2)
+etc=ExtraTreesClassifier(n_estimators=50,random_state=2)
+gbdt=GradientBoostingClassifier(n_estimators=50,random_state=2)
+xgb=XGBClassifier(n_estimators=50,random_state=2)
+
+clfs={
+    'SVC':svc,
+    'KN':knc,
+    'NB':mnb,
+    'DT':dtc,
+    'LR':lrc,
+    'RF':rfc,
+    'AdaBoost':abc,
+    'Bgc':bc,
+    'ETC':etc,
+    'GBDT':gbdt,
+    'xgb':xgb
+}
+
+def train_classifier(clf,x_train,y_train,x_test,y_test):
+    clf.fit(x_train,y_train)
+    y_pred=clf.predict(x_test)
+    accuracy=accuracy_score(y_test,y_pred)
+    precision=precision_score(y_test,y_pred)
+    return accuracy,precision
+
+train_classifier(svc,x_train,y_train,x_test,y_test)
+
+accuracy_scores=[]
+precision_scores=[]
+for name,clf in clfs.items():
+    current_accuracy,current_precision=train_classifier(clf,x_train,y_train,x_test,y_test)
+    print("for ",name)
+    print("Accuracy ",current_accuracy)
+    print("Precision ",current_precision)
+    accuracy_scores.append(current_accuracy)
+    precision_scores.append(current_precision)
+    
+
+performance_df = pd.DataFrame({'Algorithm':clfs.keys(),'Accuracy':accuracy_scores,'Precision':precision_scores}).sort_values('Precision',ascending=False)
+performance_df
+
+performance_df1=pd.melt(performance_df,id_vars="Algorithm")
+
+performance_df1
+
+sns.catplot(x = 'Algorithm', y='value', 
+               hue = 'variable',data=performance_df1, kind='bar',height=5)#hue is used to show separate variable
+plt.ylim(0.5,1.0)
+plt.xticks(rotation='vertical')
+plt.show()
+
+#model improve
+
+from sklearn.feature_extraction.text import CountVectorizer,TfidfVectorizer
+cv=CountVectorizer()
+tfidf=TfidfVectorizer(max_features=3000)
+
+x=tfidf.fit_transform(df['transformed_msg']).toarray()
+
+x
+
+x.shape
+
+y=df['target'].values
+
+y
+
+from sklearn.model_selection import train_test_split
+
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2,random_state=2)
+
+from sklearn.naive_bayes import GaussianNB,MultinomialNB,BernoulliNB
+from sklearn.metrics import accuracy_score,confusion_matrix,precision_score
+
+gnb=GaussianNB()
+mnb=MultinomialNB()
+bnb=BernoulliNB()
+
+gnb.fit(x_train,y_train)
+y_pred1=gnb.predict(x_test)
+print(accuracy_score(y_test,y_pred1))
+print(confusion_matrix(y_test,y_pred1))
+print(precision_score(y_test,y_pred1))
+
+mnb.fit(x_train,y_train)
+y_pred1=mnb.predict(x_test)
+print(accuracy_score(y_test,y_pred1))
+print(confusion_matrix(y_test,y_pred1))
+print(precision_score(y_test,y_pred1))
+
+bnb.fit(x_train,y_train)
+y_pred1=bnb.predict(x_test)
+print(accuracy_score(y_test,y_pred1))
+print(confusion_matrix(y_test,y_pred1))
+print(precision_score(y_test,y_pred1))
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from xgboost import XGBClassifier
+
+svc=SVC(kernel='sigmoid',gamma=1.0)
+knc=KNeighborsClassifier()
+mbn=MultinomialNB()
+dtc=DecisionTreeClassifier(max_depth=5)
+lrc=LogisticRegression(solver='liblinear',penalty='l1')
+rfc=RandomForestClassifier(n_estimators=50,random_state=2)
+abc=AdaBoostClassifier(n_estimators=50,random_state=2)
+bc=BaggingClassifier(n_estimators=50,random_state=2)
+etc=ExtraTreesClassifier(n_estimators=50,random_state=2)
+gbdt=GradientBoostingClassifier(n_estimators=50,random_state=2)
+xgb=XGBClassifier(n_estimators=50,random_state=2)
+
+clfs={
+    'SVC':svc,
+    'KN':knc,
+    'NB':mnb,
+    'DT':dtc,
+    'LR':lrc,
+    'RF':rfc,
+    'AdaBoost':abc,
+    'Bgc':bc,
+    'ETC':etc,
+    'GBDT':gbdt,
+    'xgb':xgb
+}
+
+def train_classifier(clf,x_train,y_train,x_test,y_test):
+    clf.fit(x_train,y_train)
+    y_pred=clf.predict(x_test)
+    accuracy=accuracy_score(y_test,y_pred)
+    precision=precision_score(y_test,y_pred)
+    return accuracy,precision
+
+train_classifier(svc,x_train,y_train,x_test,y_test)
+
+accuracy_scores=[]
+precision_scores=[]
+for name,clf in clfs.items():
+    current_accuracy,current_precision=train_classifier(clf,x_train,y_train,x_test,y_test)
+    print("for ",name)
+    print("Accuracy ",current_accuracy)
+    print("Precision ",current_precision)
+    accuracy_scores.append(current_accuracy)
+    precision_scores.append(current_precision)
+    
+
+temp_df = pd.DataFrame({'Algorithm':clfs.keys(),'Accuracy_max_ft_3000':accuracy_scores,'Precision_max_ft_3000':precision_scores}).sort_values('Precision_max_ft_3000',ascending=False)
+temp_df
+
+new_df = performance_df.merge(temp_df,on='Algorithm')
+
+new_df
+
+import pickle
+pickle.dump(tfidf,open('vectorizer.pkl','wb'))
+pickle.dump(mnb,open('model.pkl','wb'))
+
